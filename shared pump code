@@ -1,0 +1,84 @@
+#include "DHT.h"
+//#include <dht.h>
+//dht _DHT;
+
+#define DHT_PIN 13
+#define PUMP_PIN 2
+
+#define PUMP_ON 0
+#define PUMP_OFF 1
+
+#define PUMP_ON_TIME 5000
+#define DELAY_TIME 5000
+#define HUMIDITY_LOW_LEVEL 50
+
+#define DHTTYPE DHT11 // DHT 11, DHT22, DHT21
+DHT _DHT(DHT_PIN, DHTTYPE);
+
+float temperature = 9999.99;
+float humidity = 999.99;
+bool isDebugging = true;
+
+unsigned long OneSecondTimer;
+bool PumpStatus = PUMP_OFF;
+int chk = 0;
+int PumpTimer = 0;
+int DelayTimer = 0;
+
+void setup(){
+  Serial.begin(115200);
+  delay(500);
+  Serial.println("\n-----> Setup Start <-----");
+
+  _DHT.begin();
+  pinMode(PUMP_PIN, OUTPUT);
+  OneSecondTimer = millis();
+ 
+  Serial.println("------> Setup End <------\n");
+}
+
+void OnOneSecondTick(){
+  //chk = _DHT.read11(DHT_PIN);
+  //humidity = _DHT.humidity;
+  //temperature = _DHT.temperature;
+ 
+  humidity = _DHT.readHumidity();
+  temperature = _DHT.readTemperature(true);
+ 
+  PumpTimer--;
+  DelayTimer--;
+ 
+  if(PumpTimer <= 0){
+    digitalWrite(PUMP_PIN, PUMP_OFF);
+    if(PumpStatus == PUMP_ON){      
+      DelayTimer = DELAY_TIME;
+    }
+    PumpStatus = PUMP_OFF;
+  }
+ 
+  if(humidity < HUMIDITY_LOW_LEVEL) {//if the soil is try then pump out water for 1 second
+    if(PumpStatus == PUMP_OFF && DelayTimer <= 0){
+      PumpTimer = PUMP_ON_TIME;
+      digitalWrite(PUMP_PIN, PUMP_ON);
+      PumpStatus = PUMP_ON;
+    }
+  }
+  if(isDebugging){
+    Serial.println("=====================");
+    Serial.println("Humidity: " + String(humidity));
+    Serial.println("Temperature: " + String(temperature));
+    Serial.println("Pump: " + String(PumpStatus == PUMP_OFF? "Off":"On"));
+    Serial.println("Pump Timer: " + String(PumpTimer));
+    Serial.println("Delay Timer: " + String(DelayTimer));
+  }
+}
+
+void loop(){
+  // Dont freeze everything with delays
+  // use a timer
+  if(millis() - OneSecondTimer >= 1000) {
+    OneSecondTimer =  millis();
+    OnOneSecondTick();
+  }
+  delay(0);
+}
